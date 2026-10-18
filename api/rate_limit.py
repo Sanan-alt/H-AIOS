@@ -33,7 +33,7 @@ class RateLimiter:
             await self._redis.aclose()
 
     async def consume(self, user_id: str, bucket: str, limit: int, window: int) -> None:
-        key = f"jarvis:rate:{bucket}:{user_id}:{int(time.time()) // window}"
+        key = f"haroid:rate:{bucket}:{user_id}:{int(time.time()) // window}"
         if self._redis is not None:
             count = await self._redis.incr(key)
             if count == 1:

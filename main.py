@@ -7,11 +7,21 @@ import sys
 import traceback
 from pathlib import Path
 
+# Safe UTF-8 configuration for Windows consoles
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
+    except Exception:
+        pass
+
+import numpy as np
 import sounddevice as sd
 from google import genai
 from google.genai import types
-from api import status as jarvis_status
-from core.jarvis_client import JarvisClient
+from api import status as haroid_status
+from core.haroid_client import HaroidClient
+from core.wake_engine import WakeEngine, WakeState
 from memory.memory_manager import (
     load_memory, update_memory, format_memory_for_prompt,
 )
@@ -96,16 +106,16 @@ STARTUP_CLAPS_REQUIRED = 2
 STARTUP_CLAP_MAX_GAP_SECONDS = 4.0
 STARTUP_CLAP_COOLDOWN_SECONDS = 0.22
 SELF_QUIT_GOODBYE = (
-    "Certainly, sir. It has been a privilege. JARVIS is going offline now. "
+    "Certainly, sir. It has been a privilege. HAROID is going offline now. "
     "Until next time."
 )
 
 _SELF_QUIT_PATTERNS = tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
-    r"\b(?:quit|close|exit)\s+(?:jarvis|yourself)\b",
-    r"\b(?:shut|turn)\s+(?:jarvis|yourself)\s+(?:down|off)\b",
-    r"\b(?:shut\s+down|turn\s+off|power\s+down)\s+(?:jarvis|yourself)\b",
-    r"\bjarvis\b.{0,36}\b(?:quit|close|exit|shut\s+down|turn\s+off|go\s+offline)\b",
-    r"\b(?:go|take\s+yourself)\s+offline(?:\s+jarvis)?\b",
+    r"\b(?:quit|close|exit)\s+(?:haroid|yourself)\b",
+    r"\b(?:shut|turn)\s+(?:haroid|yourself)\s+(?:down|off)\b",
+    r"\b(?:shut\s+down|turn\s+off|power\s+down)\s+(?:haroid|yourself)\b",
+    r"\bharoid\b.{0,36}\b(?:quit|close|exit|shut\s+down|turn\s+off|go\s+offline)\b",
+    r"\b(?:go|take\s+yourself)\s+offline(?:\s+haroid)?\b",
 ))
 
 
@@ -164,15 +174,15 @@ def wait_for_startup_claps(
     stream_factory=None,
 ) -> bool:
     """Hold startup until two distinct claps are heard by the default microphone."""
-    if os.environ.get("JARVIS_SKIP_CLAP_GATE", "").strip().lower() in {"1", "true", "yes", "on"}:
-        print("[JARVIS] 👏 Startup clap gate bypassed (JARVIS_SKIP_CLAP_GATE).")
+    if os.environ.get("HAROID_SKIP_CLAP_GATE", "").strip().lower() in {"1", "true", "yes", "on"}:
+        print("[HAROID] 👏 Startup clap gate bypassed (HAROID_SKIP_CLAP_GATE).")
         return True
     # Some macOS/AUHAL configurations expose a nominal input device but reject
     # every PortAudio operation (PaErrorCode -9986). Avoid repeatedly starting
     # a failing Core Audio stream; users with a working mic can opt in.
-    if sys.platform == "darwin" and stream_factory is None and os.environ.get("JARVIS_ENABLE_CLAP_GATE", "").strip().lower() not in {"1", "true", "yes", "on"}:
-        print("[JARVIS] ⚠️ macOS microphone gate disabled for this audio configuration.")
-        print("[JARVIS] Continuing without clap startup. Set JARVIS_ENABLE_CLAP_GATE=1 to force it.")
+    if sys.platform == "darwin" and stream_factory is None and os.environ.get("HAROID_ENABLE_CLAP_GATE", "").strip().lower() not in {"1", "true", "yes", "on"}:
+        print("[HAROID] ⚠️ macOS microphone gate disabled for this audio configuration.")
+        print("[HAROID] Continuing without clap startup. Set HAROID_ENABLE_CLAP_GATE=1 to force it.")
         return True
 
     required = max(1, int(required))
@@ -180,7 +190,7 @@ def wait_for_startup_claps(
     try:
         import numpy as np
     except ImportError:
-        print("[JARVIS] ❌ Startup clap gate needs numpy. Set JARVIS_SKIP_CLAP_GATE=1 to bypass.")
+        print("[HAROID] ❌ Startup clap gate needs numpy. Set HAROID_SKIP_CLAP_GATE=1 to bypass.")
         return False
 
     clap_times: list[float] = []
@@ -196,7 +206,7 @@ def wait_for_startup_claps(
     def callback(indata, frames, time_info, status):
         nonlocal last_clap_at, noise_floor, clap_times
         if status:
-            print(f"[JARVIS] ⚠️ Clap mic: {status}")
+            print(f"[HAROID] ⚠️ Clap mic: {status}")
         samples = np.asarray(indata, dtype=np.float32).reshape(-1)
         if samples.size == 0:
             return
@@ -227,11 +237,11 @@ def wait_for_startup_claps(
             clap_times = []
         clap_times.append(now)
         last_clap_at = now
-        print(f"[JARVIS] 👏 Clap {len(clap_times)}/{required} detected")
+        print(f"[HAROID] 👏 Clap {len(clap_times)}/{required} detected")
         if len(clap_times) >= required:
             finished.set()
 
-    print(f"[JARVIS] 👏 Waiting for {required} claps to power up...")
+    print(f"[HAROID] 👏 Waiting for {required} claps to power up...")
     # PortAudio on macOS commonly rejects 16 kHz even when the microphone is
     # available (PaErrorCode -9986). Prefer the device's native rate, then
     # retry standard rates before reporting that the microphone is unavailable.
@@ -246,9 +256,9 @@ def wait_for_startup_claps(
                 except (TypeError, IndexError, ValueError):
                     input_index = -1
                 if input_index < 0:
-                    print("[JARVIS] ⚠️ macOS reports no default microphone device.")
-                    if os.environ.get("JARVIS_REQUIRE_CLAP_GATE", "").strip().lower() not in {"1", "true", "yes", "on"}:
-                        print("[JARVIS] ⚠️ Continuing without the clap gate; microphone input is unavailable.")
+                    print("[HAROID] ⚠️ macOS reports no default microphone device.")
+                    if os.environ.get("HAROID_REQUIRE_CLAP_GATE", "").strip().lower() not in {"1", "true", "yes", "on"}:
+                        print("[HAROID] ⚠️ Continuing without the clap gate; microphone input is unavailable.")
                         return True
                     raise RuntimeError("no default microphone device")
                 input_device = input_index
@@ -285,7 +295,7 @@ def wait_for_startup_claps(
                 ):
                     while not finished.wait(0.05):
                         if timeout is not None and time.monotonic() - started_at >= timeout:
-                            print("[JARVIS] ⏱️ Startup clap gate timed out.")
+                            print("[HAROID] ⏱️ Startup clap gate timed out.")
                             return False
                 break
             except Exception as exc:
@@ -295,18 +305,18 @@ def wait_for_startup_claps(
         else:
             raise last_error or RuntimeError("no compatible microphone sample rate")
     except KeyboardInterrupt:
-        print("\n[JARVIS] Startup cancelled.")
+        print("\n[HAROID] Startup cancelled.")
         return False
     except Exception as exc:
-        print(f"[JARVIS] ❌ Startup clap microphone unavailable: {exc}")
-        if os.environ.get("JARVIS_REQUIRE_CLAP_GATE", "").strip().lower() not in {"1", "true", "yes", "on"}:
-            print("[JARVIS] ⚠️ Continuing without the clap gate; microphone input is unavailable.")
-            print("[JARVIS] Restore microphone access to use voice input.")
+        print(f"[HAROID] ❌ Startup clap microphone unavailable: {exc}")
+        if os.environ.get("HAROID_REQUIRE_CLAP_GATE", "").strip().lower() not in {"1", "true", "yes", "on"}:
+            print("[HAROID] ⚠️ Continuing without the clap gate; microphone input is unavailable.")
+            print("[HAROID] Restore microphone access to use voice input.")
             return True
-        print("[JARVIS] Clap gate required. Set JARVIS_SKIP_CLAP_GATE=1 to bypass it.")
+        print("[HAROID] Clap gate required. Set HAROID_SKIP_CLAP_GATE=1 to bypass it.")
         return False
 
-    print("[JARVIS] ⚡ Two claps detected. Powering up...")
+    print("[HAROID] ⚡ Two claps detected. Powering up...")
     return True
 
 def _get_api_key() -> str:
@@ -353,7 +363,7 @@ def _load_system_prompt() -> str:
         )
     except Exception:
         return (
-            "You are JARVIS, Tony Stark's AI assistant. "
+            "You are HAROID, Tony Stark's AI assistant. "
             "Be concise, direct, and always use the provided tools to complete tasks. "
             "Never simulate or guess results — always call the appropriate tool. "
             "Always address the user respectfully as 'Sir' or 'Madam' where appropriate, while remaining efficient and direct."
@@ -775,7 +785,7 @@ TOOL_DECLARATIONS = [
     },
     {
         "name": "graphics_quality",
-        "description": "Changes JARVIS rendering quality between low, medium, and high.",
+        "description": "Changes HAROID rendering quality between low, medium, and high.",
         "parameters": {
             "type": "OBJECT",
             "properties": {
@@ -789,9 +799,9 @@ TOOL_DECLARATIONS = [
         }
     },
     {
-        "name": "jarvis_ui_control",
+        "name": "haroid_ui_control",
         "description": (
-            "Changes JARVIS's own interface. Use when the user asks to open or close the Command Center, "
+            "Changes HAROID's own interface. Use when the user asks to open or close the Command Center, "
             "change the theme or graphics quality, open settings, enter compact mode, toggle fullscreen, or show shortcuts."
         ),
         "parameters": {
@@ -906,12 +916,12 @@ TOOL_DECLARATIONS = [
                 },
                 "theme": {
                     "type": "STRING",
-                    "description": "Visual theme: jarvis_minimal | editorial | arc_reactor | executive | platinum. Default: jarvis_minimal."
+                    "description": "Visual theme: haroid_minimal | editorial | arc_reactor | executive | platinum. Default: haroid_minimal."
                 },
                 "appearance": {
                     "type": "STRING",
                     "enum": ["auto", "light", "dark"],
-                    "description": "Overall slide appearance. Honor light or dark when requested; auto uses the restrained dark JARVIS style."
+                    "description": "Overall slide appearance. Honor light or dark when requested; auto uses the restrained dark HAROID style."
                 },
                 "transition": {
                     "type": "STRING",
@@ -1130,11 +1140,11 @@ def get_tool_declarations(*, cloud_safe: bool = False) -> list[dict]:
     ]
 
 
-class JarvisLive:
+class HaroidLive:
 
     def __init__(
         self,
-        client: JarvisClient,
+        client: HaroidClient,
         voice_name: str = "Puck",
         *,
         cloud_safe: bool = False,
@@ -1142,7 +1152,7 @@ class JarvisLive:
         external_audio: bool = False,
     ):
         # Keep ``ui`` as a compatibility alias for desktop integrations that
-        # already inspect JarvisLive.ui. The engine contract is JarvisClient.
+        # already inspect HaroidLive.ui. The engine contract is HaroidClient.
         self.client         = client
         self.ui             = client
         self.cloud_safe     = bool(cloud_safe)
@@ -1176,11 +1186,68 @@ class JarvisLive:
         self._self_quit_timer = None
         self._shutdown_requested = threading.Event()
         self._tour_active = False
+        self._pending_text_commands: list[str] = []
+
+        self.wake_engine = WakeEngine(
+            on_wake=self._on_wake_triggered,
+            on_claps=self._on_claps_detected,
+            on_standby=self._on_standby_entered,
+        )
+        if hasattr(self.ui, "_win"):
+            self.ui._win.on_standby_requested = self.wake_engine.enter_standby
+
+    def _on_wake_triggered(self):
+        self.ui.write_log("SYS: ⚡ HAROID awakened via voice activation.")
+        if hasattr(self.ui, "_win"):
+            self.ui._win._tray_show()
+        if self.ui.muted:
+            self.ui.muted = False
+        self.speak("At your service, sir. How can I assist you today?")
+
+    def _on_claps_detected(self, count: int):
+        self.ui.write_log(f"SYS: 👏 Clap {count}/2 detected. Listening for 'Hey HAROID'...")
+        if hasattr(self.ui, "_win") and hasattr(self.ui._win, "_tray") and self.ui._win._tray.isVisible():
+            try:
+                from PyQt6.QtWidgets import QSystemTrayIcon
+                self.ui._win._tray.showMessage(
+                    "HAROID", f"👏 Clap {count}/2 heard! Say 'Hey HAROID' to activate.",
+                    QSystemTrayIcon.MessageIcon.Information, 2000
+                )
+            except Exception:
+                pass
+
+    def _on_standby_entered(self):
+        self.ui.write_log("SYS: HAROID entered standby mode. Waiting for 2 claps + 'Hey HAROID'.")
+        if hasattr(self.ui, "_win"):
+            self.ui._win.hide()
 
     def _on_text_command(self, text: str):
-        if not self._loop or not self.session:
+        text = str(text or "").strip()
+        if not text:
             return
-        asyncio.run_coroutine_threadsafe(self.send_text(text), self._loop)
+        if not self._loop or not self.session:
+            self._pending_text_commands.append(text)
+            self.ui.write_log("SYS: Command queued while HAROID is connecting.")
+            return
+
+        future = asyncio.run_coroutine_threadsafe(self.send_text(text), self._loop)
+
+        def report_failure(done):
+            try:
+                if not done.result():
+                    self.ui.write_log("ERR: HAROID is not ready to receive commands.")
+            except Exception as exc:
+                self.ui.write_log(f"ERR: Message processing failed: {exc}")
+
+        future.add_done_callback(report_failure)
+
+    async def _flush_pending_text_commands(self) -> None:
+        if not self._pending_text_commands:
+            return
+        pending = self._pending_text_commands[:]
+        self._pending_text_commands.clear()
+        for text in pending:
+            await self.send_text(text)
 
     async def send_text(self, text: str) -> bool:
         """Send a text turn from either the desktop callback or a web client."""
@@ -1198,7 +1265,7 @@ class JarvisLive:
         ):
             self._queue_self_quit_after_farewell()
             outgoing_text = (
-                "[VERIFIED LOCAL SELF-SHUTDOWN] The user explicitly asked JARVIS to quit. "
+                "[VERIFIED LOCAL SELF-SHUTDOWN] The user explicitly asked HAROID to quit. "
                 f'Say exactly: "{SELF_QUIT_GOODBYE}" Do not call a tool and say nothing else.'
             )
         await self.session.send_client_content(
@@ -1242,7 +1309,7 @@ class JarvisLive:
             return False
 
     def _speak_vision_result(self, text: str) -> bool:
-        """Send finished vision text through JARVIS's active voice session."""
+        """Send finished vision text through HAROID's active voice session."""
         result = " ".join(str(text or "").split())
         if not result:
             return False
@@ -1260,7 +1327,7 @@ class JarvisLive:
 
     @staticmethod
     def _is_explicit_self_quit_transcript(text: str) -> bool:
-        """Only match commands that clearly target JARVIS, never the computer."""
+        """Only match commands that clearly target HAROID, never the computer."""
         normalized = " ".join(str(text or "").lower().split())
         if not normalized:
             return False
@@ -1270,7 +1337,7 @@ class JarvisLive:
             return False
         if normalized in {
             "quit", "exit", "shutdown", "shut down", "turn off", "power down",
-            "go offline", "goodbye jarvis", "goodbye jarvis please",
+            "go offline", "goodbye haroid", "goodbye haroid please",
         }:
             return True
         return any(pattern.search(normalized) for pattern in _SELF_QUIT_PATTERNS)
@@ -1280,7 +1347,7 @@ class JarvisLive:
         self._pending_self_quit = True
         self._pending_self_quit_farewell_received = False
         try:
-            self.ui.write_log("SYS: Shutdown queued; waiting for JARVIS's farewell.")
+            self.ui.write_log("SYS: Shutdown queued; waiting for HAROID's farewell.")
         except Exception:
             pass
         # A voice model can occasionally omit audio/turn_complete. Do not
@@ -1317,7 +1384,7 @@ class JarvisLive:
             self._self_quit_timer.cancel()
             self._self_quit_timer = None
         self.request_shutdown()
-        self.ui.handle_ui_command("Quit JARVIS")
+        self.ui.handle_ui_command("Quit HAROID")
         return True
 
     def request_shutdown(self) -> None:
@@ -1338,7 +1405,7 @@ class JarvisLive:
             if out_queue is not None:
                 out_queue.put_nowait(None)
         except Exception as exc:
-            print(f"[JARVIS] ⚠️ Shutdown session close failed: {exc}")
+            print(f"[HAROID] ⚠️ Shutdown session close failed: {exc}")
 
     def set_tour_active(self, active: bool) -> None:
         """Track whether the desktop introduction temporarily owns the UI."""
@@ -1355,8 +1422,8 @@ class JarvisLive:
     def _intercept_ui_tool_call(self, name: str, args: dict) -> str | None:
         """Safety net for stale models that attempt the removed quit tool action."""
         action = str(args.get("action") or "").strip().lower()
-        if name != "shutdown_jarvis" and not (
-            name == "jarvis_ui_control" and action == "quit_jarvis"
+        if name != "shutdown_haroid" and not (
+            name == "haroid_ui_control" and action == "quit_haroid"
         ):
             return None
 
@@ -1367,7 +1434,7 @@ class JarvisLive:
                 transcript = str(getattr(self, "_last_input_transcript", "") or "")
 
         if not self._is_explicit_self_quit_transcript(transcript):
-            return "Ignored an unverified shutdown request. JARVIS remains online."
+            return "Ignored an unverified shutdown request. HAROID remains online."
 
         self._queue_self_quit_after_farewell()
         return f'Shutdown queued. Say exactly: "{SELF_QUIT_GOODBYE}"'
@@ -1383,7 +1450,7 @@ class JarvisLive:
             try:
                 asyncio.run_coroutine_threadsafe(self.session.close(), self._loop)
             except Exception as e:
-                print(f"[JARVIS] ⚠️ Could not close session after voice change: {e}")
+                print(f"[HAROID] ⚠️ Could not close session after voice change: {e}")
 
     def _get_current_voice(self) -> str:
         if getattr(self, "voice_name", None):
@@ -1410,15 +1477,15 @@ class JarvisLive:
             elif isinstance(name_entry, str):
                 name = name_entry
             if name:
-                greeting = f"Jarvis. At your service, {name}. What would you like to accomplish today?"
+                greeting = f"Haroid. At your service, {name}. What would you like to accomplish today?"
             else:
-                greeting = "Jarvis. At your service, Sir or Madam. What would you like to accomplish today?"
+                greeting = "Haroid. At your service, Sir or Madam. What would you like to accomplish today?"
             await self.session.send_client_content(
                 turns={"parts": [{"text": greeting}]},
                 turn_complete=True,
             )
         except Exception as e:
-            print(f"[JARVIS] ⚠️ Greeting failed: {e}")
+            print(f"[HAROID] ⚠️ Greeting failed: {e}")
 
     def _build_config(self) -> types.LiveConnectConfig:
         from datetime import datetime
@@ -1489,7 +1556,7 @@ class JarvisLive:
             return types.FunctionResponse(
                 id=fc.id,
                 name=name,
-                response={"result": "Startup sequence active. Try this action again when JARVIS is ready."},
+                response={"result": "Startup sequence active. Try this action again when HAROID is ready."},
             )
 
         from core.qa_mode import guard_tool_call, qa_block_message
@@ -1502,7 +1569,7 @@ class JarvisLive:
                 response={"result": qa_block_message(qa_decision)},
             )
 
-        print(f"[JARVIS] 🔧 {name}  {args}")
+        print(f"[HAROID] 🔧 {name}  {args}")
         self.ui.set_state("THINKING")
 
         intercepted = self._intercept_ui_tool_call(name, args)
@@ -1654,26 +1721,26 @@ class JarvisLive:
                 if quality not in {"low", "medium", "high"}:
                     raise ValueError("Graphics quality must be low, medium, or high.")
                 self.ui.set_graphics_quality(quality)
-                result = f"JARVIS graphics quality changed to {quality}."
+                result = f"HAROID graphics quality changed to {quality}."
 
-            elif name == "jarvis_ui_control":
+            elif name == "haroid_ui_control":
                 action = str(args.get("action") or "").strip().lower()
                 if action == "change_theme":
                     theme = str(args.get("theme") or "").strip().lower()
                     allowed = {"arc_reactor", "stealth_red", "vibranium_purple", "nanotech_gold", "platinum"}
                     if theme not in allowed:
-                        raise ValueError(f"Unknown JARVIS theme: {theme or 'missing'}")
+                        raise ValueError(f"Unknown HAROID theme: {theme or 'missing'}")
                     self.ui.set_theme(theme)
-                    result = f"JARVIS theme changed to {theme.replace('_', ' ')}."
+                    result = f"HAROID theme changed to {theme.replace('_', ' ')}."
                 elif action == "change_graphics_quality":
                     quality = str(args.get("graphics_quality") or "").strip().lower()
                     if quality not in {"low", "medium", "high"}:
                         raise ValueError(f"Unknown graphics quality: {quality or 'missing'}")
                     self.ui.set_graphics_quality(quality)
-                    result = f"JARVIS graphics quality changed to {quality}."
+                    result = f"HAROID graphics quality changed to {quality}."
                 else:
                     self.ui.handle_ui_command(action)
-                    result = f"JARVIS interface action completed: {action.replace('_', ' ')}."
+                    result = f"HAROID interface action completed: {action.replace('_', ' ')}."
 
             elif name == "deep_research":
                 r = request_deep_research(parameters=args, player=self.ui, speak=self.speak)
@@ -1721,7 +1788,7 @@ class JarvisLive:
         if not self.ui.muted:
             self.ui.set_state("LISTENING")
 
-        print(f"[JARVIS] 📤 {name} → {str(result)[:80]}")
+        print(f"[HAROID] 📤 {name} → {str(result)[:80]}")
         return types.FunctionResponse(
             id=fc.id, name=name,
             response={"result": result}
@@ -1733,7 +1800,7 @@ class JarvisLive:
             "send_message", "prepare_message_reply", "email_control", "reminder",
             "computer_settings", "computer_control", "desktop_control", "file_controller",
             "file_processor", "code_helper", "dev_agent", "game_updater",
-            "create_presentation", "save_memory", "jarvis_ui_control", "graphics_quality",
+            "create_presentation", "save_memory", "haroid_ui_control", "graphics_quality",
         }
         call_list = list(calls or [])
         if any(getattr(call, "name", "") in mutating for call in call_list):
@@ -1750,13 +1817,24 @@ class JarvisLive:
             await self.session.send_realtime_input(media=msg)
 
     async def _listen_audio(self):
-        print("[JARVIS] 🎤 Mic started")
+        print("[HAROID] 🎤 Mic started")
         loop = asyncio.get_event_loop()
 
         def callback(indata, frames, time_info, status):
             with self._speaking_lock:
-                jarvis_speaking = self._is_speaking
-            if not jarvis_speaking and not self.ui.muted:
+                haroid_speaking = self._is_speaking
+            if not haroid_speaking and not self.ui.muted:
+                if hasattr(self, "wake_engine") and not self.wake_engine.is_active():
+                    # Process audio in background standby / wake phrase detector
+                    samples_f32 = indata.astype(np.float32) / 32768.0
+                    wake_triggered, event_type = self.wake_engine.process_audio_frame(samples_f32)
+                    if self.wake_engine.is_standby() and not wake_triggered:
+                        return
+                    if event_type == "two_claps_detected":
+                        return
+                    if wake_triggered:
+                        return
+
                 data = indata.tobytes()
                 loop.call_soon_threadsafe(
                     self.out_queue.put_nowait,
@@ -1771,15 +1849,15 @@ class JarvisLive:
                 blocksize=CHUNK_SIZE,
                 callback=callback,
             ):
-                print("[JARVIS] 🎤 Mic stream open")
+                print("[HAROID] 🎤 Mic stream open")
                 while not self._shutdown_requested.is_set():
                     await asyncio.sleep(0.1)
         except Exception as e:
-            print(f"[JARVIS] ❌ Mic: {e}")
+            print(f"[HAROID] ❌ Mic: {e}")
             raise
 
     async def _receive_audio(self):
-        print("[JARVIS] 👂 Recv started")
+        print("[HAROID] 👂 Recv started")
         out_buf, in_buf = [], []
         _new_turn = True
         turn_had_audio = False
@@ -1838,12 +1916,16 @@ class JarvisLive:
                                     and self._is_explicit_self_quit_transcript(full_in)
                                 ):
                                     self._queue_self_quit_after_farewell()
+                                elif hasattr(self, "wake_engine"):
+                                    lower_in = full_in.lower()
+                                    if any(p in lower_in for p in ["go to sleep", "enter standby", "haroid sleep", "standby mode"]):
+                                        self.wake_engine.enter_standby(notify=True)
                                 self.ui.write_log(f"You: {full_in}")
                             in_buf = []
 
                             full_out = " ".join(out_buf).strip()
                             if full_out:
-                                self.ui.write_log(f"Jarvis: {full_out}")
+                                self.ui.write_log(f"Haroid: {full_out}")
                             if (
                                 getattr(self, "_pending_self_quit", False)
                                 and (full_out or turn_had_audio)
@@ -1857,7 +1939,7 @@ class JarvisLive:
                     if response.tool_call:
                         function_calls = list(response.tool_call.function_calls)
                         for fc in function_calls:
-                            print(f"[JARVIS] 📞 {fc.name}")
+                            print(f"[HAROID] 📞 {fc.name}")
                         fn_responses = await self._execute_tool_batch(function_calls)
                         await self.session.send_tool_response(
                             function_responses=fn_responses
@@ -1866,16 +1948,16 @@ class JarvisLive:
                         return
         except Exception as e:
             if isinstance(e, genai.errors.APIError) and "1000" in str(e):
-                print("[JARVIS] 🔌 Session closed normally.")
+                print("[HAROID] 🔌 Session closed normally.")
                 return
-            print(f"[JARVIS] ❌ Recv: {e}")
+            print(f"[HAROID] ❌ Recv: {e}")
             traceback.print_exc()
             raise
 
 
 
     async def _play_audio(self):
-        print("[JARVIS] 🔊 Play started")
+        print("[HAROID] 🔊 Play started")
 
         stream = None
         if not self.external_audio:
@@ -1919,7 +2001,7 @@ class JarvisLive:
                     elif stream is not None:
                         await asyncio.to_thread(stream.write, chunk)
         except Exception as e:
-            print(f"[JARVIS] ❌ Play: {e}")
+            print(f"[HAROID] ❌ Play: {e}")
             raise
         finally:
             self.set_speaking(False)
@@ -1945,9 +2027,9 @@ class JarvisLive:
             if self.runtime_limit_seconds is not None:
                 elapsed = time.time() - start_time
                 if elapsed >= float(self.runtime_limit_seconds):
-                    print(f"[JARVIS] ⏱️ Runtime limit reached ({self.runtime_limit_seconds}s). Exiting.")
+                    print(f"[HAROID] ⏱️ Runtime limit reached ({self.runtime_limit_seconds}s). Exiting.")
                     try:
-                        jarvis_status.write_status({"state": "expired"})
+                        haroid_status.write_status({"state": "expired"})
                     except Exception:
                         pass
                     os._exit(0)
@@ -1957,23 +2039,23 @@ class JarvisLive:
                 try:
                     path = Path(self.required_unlock_path)
                     if not path.exists():
-                        print(f"[JARVIS] 🔒 Required unlock path not present: {self.required_unlock_path}")
+                        print(f"[HAROID] 🔒 Required unlock path not present: {self.required_unlock_path}")
                         print("Please mount the locked container (see scripts/create_locked_dmg.sh).")
                         time.sleep(5)
                         continue
                     if self.required_unlock_secret is not None:
                         content = path.read_text(encoding="utf-8").strip()
                         if content != self.required_unlock_secret:
-                            print("[JARVIS] 🔒 unlock.key content does not match expected secret.")
+                            print("[HAROID] 🔒 unlock.key content does not match expected secret.")
                             print("Please mount the locked container with the correct unlock.key file.")
                             time.sleep(5)
                             continue
                 except Exception as e:
-                    print(f"[JARVIS] 🔒 Locked path check error: {e}")
+                    print(f"[HAROID] 🔒 Locked path check error: {e}")
                     time.sleep(1)
                     continue
             try:
-                print("[JARVIS] 🔌 Connecting...")
+                print("[HAROID] 🔌 Connecting...")
                 self.ui.set_state("THINKING")
                 config = self._build_config()
 
@@ -1987,12 +2069,13 @@ class JarvisLive:
                     self.out_queue      = asyncio.Queue(maxsize=10)
                     self._turn_done_event = asyncio.Event()
 
-                    print("[JARVIS] ✅ Connected.")
+                    print("[HAROID] ✅ Connected.")
                     self.ui.set_state("LISTENING")
-                    self.ui.write_log("SYS: JARVIS online.")
+                    self.ui.write_log("SYS: HAROID online.")
+                    await self._flush_pending_text_commands()
                     if not self.cloud_safe:
                         try:
-                            jarvis_status.write_status({
+                            haroid_status.write_status({
                                 "state": "online",
                                 "voice": self._get_current_voice(),
                                 "pid": os.getpid(),
@@ -2020,22 +2103,22 @@ class JarvisLive:
                     self.ui.write_log(
                         f"SYS: Voice '{old_voice}' not available. Falling back to {DEFAULT_VOICE_NAME}."
                     )
-                    print(f"[JARVIS] ⚠️ Voice '{old_voice}' unsupported; falling back to {DEFAULT_VOICE_NAME}.")
+                    print(f"[HAROID] ⚠️ Voice '{old_voice}' unsupported; falling back to {DEFAULT_VOICE_NAME}.")
                     self.ui.sync_voice_display(DEFAULT_VOICE_NAME)
                     if not self.cloud_safe:
                         try:
-                            jarvis_status.write_status({"state": "voice_fallback", "voice": DEFAULT_VOICE_NAME})
+                            haroid_status.write_status({"state": "voice_fallback", "voice": DEFAULT_VOICE_NAME})
                         except Exception:
                             pass
                 elif isinstance(actual, genai.errors.APIError) and "1000" in str(actual):
-                    print("[JARVIS] 🔌 Session ended normally.")
+                    print("[HAROID] 🔌 Session ended normally.")
                     if not self.cloud_safe:
                         try:
-                            jarvis_status.write_status({"state": "offline"})
+                            haroid_status.write_status({"state": "offline"})
                         except Exception:
                             pass
                 else:
-                    print(f"[JARVIS] ⚠️ {e}")
+                    print(f"[HAROID] ⚠️ {e}")
                     traceback.print_exc()
 
 def main():
@@ -2046,84 +2129,106 @@ def main():
 
         return self_test_main([argument for argument in sys.argv[1:] if argument != "--self-test"])
 
-    from ui import JarvisUI
+    if "--enable-autostart" in sys.argv[1:]:
+        from core.autostart import enable_autostart
+        ok, msg = enable_autostart()
+        print(f"[{'OK' if ok else 'FAIL'}] {msg}")
+        return 0 if ok else 1
+
+    if "--disable-autostart" in sys.argv[1:]:
+        from core.autostart import disable_autostart
+        ok, msg = disable_autostart()
+        print(f"[{'OK' if ok else 'FAIL'}] {msg}")
+        return 0 if ok else 1
+
+    if "--autostart-status" in sys.argv[1:]:
+        from core.autostart import is_autostart_enabled
+        enabled = is_autostart_enabled()
+        print(f"HAROID autostart status: {'ENABLED' if enabled else 'DISABLED'}")
+        return 0
+
+    from ui import HaroidUI
 
     running_as_app = getattr(sys, "frozen", False)
+    is_background = "--background" in sys.argv[1:] or "--tray" in sys.argv[1:] or "--silent" in sys.argv[1:]
 
-    if os.environ.get("JARVIS_CLI") != "1" and not running_as_app:
-        print("[JARVIS] Please launch with the JARVIS CLI: jarvis")
-        return
-    if not wait_for_startup_claps():
-        return
-    print("[JARVIS] ⚡ Powering up the interface...")
+    if os.environ.get("HAROID_CLI") != "1" and not running_as_app and not is_background:
+        os.environ["HAROID_CLI"] = "1"
+
+    if not is_background and not os.environ.get("HAROID_SKIP_CLAP_GATE"):
+        if not wait_for_startup_claps():
+            return
+    print("[HAROID] ⚡ Powering up the interface...")
     try:
-        ui = JarvisUI("face.png")
+        ui = HaroidUI("face.png", start_in_background=is_background)
     except Exception as exc:
-        print(f"[JARVIS] ❌ Interface startup failed: {exc}")
+        print(f"[HAROID] ❌ Interface startup failed: {exc}")
         traceback.print_exc()
         return
 
     def runner():
         ui.wait_for_api_key()
         voice_name = _load_voice_name()
-        jarvis = JarvisLive(ui, voice_name)
-        ui.on_quit_requested = jarvis.request_shutdown
+        haroid = HaroidLive(ui, voice_name)
+        if is_background:
+            haroid.wake_engine.enter_standby(notify=False)
+        ui.on_quit_requested = haroid.request_shutdown
 
-        # Trial/keyword runtime limiting: set via env `JARVIS_TRIAL_KEYWORD`.
-        # If set to any non-empty string, jarvis will run for 3600 seconds (1 hour).
-        trial_kw = os.environ.get("JARVIS_TRIAL_KEYWORD")
+        # Trial/keyword runtime limiting: set via env `HAROID_TRIAL_KEYWORD`.
+        # If set to any non-empty string, haroid will run for 3600 seconds (1 hour).
+        trial_kw = os.environ.get("HAROID_TRIAL_KEYWORD")
         if trial_kw:
-            jarvis.runtime_limit_seconds = int(os.environ.get("JARVIS_RUNTIME_SECONDS", "3600"))
-            jarvis.ui.write_log(f"SYS: Trial keyword detected. Running for {jarvis.runtime_limit_seconds} seconds.")
+            haroid.runtime_limit_seconds = int(os.environ.get("HAROID_RUNTIME_SECONDS", "3600"))
+            haroid.ui.write_log(f"SYS: Trial keyword detected. Running for {haroid.runtime_limit_seconds} seconds.")
 
-        locked_secret = os.environ.get("JARVIS_LOCKED_KEY_SECRET")
+        locked_secret = os.environ.get("HAROID_LOCKED_KEY_SECRET")
         if locked_secret:
-            jarvis.required_unlock_secret = locked_secret.strip()
+            haroid.required_unlock_secret = locked_secret.strip()
 
-        # Locked container check: if `JARVIS_LOCKED_VOLUME` is set, require
+        # Locked container check: if `HAROID_LOCKED_VOLUME` is set, require
         # presence of `/Volumes/<name>/unlock.key` before full operation.
-        locked_vol = os.environ.get("JARVIS_LOCKED_VOLUME")
+        locked_vol = os.environ.get("HAROID_LOCKED_VOLUME")
         if locked_vol:
             mount_path = f"/Volumes/{locked_vol}/unlock.key"
-            jarvis.required_unlock_path = mount_path
-            jarvis.ui.write_log(f"SYS: Locked volume required: {mount_path}")
-        ui.on_voice_change = jarvis.update_voice
+            haroid.required_unlock_path = mount_path
+            haroid.ui.write_log(f"SYS: Locked volume required: {mount_path}")
+        ui.on_voice_change = haroid.update_voice
         def _on_tts_change(provider, api_key, voice_id):
             if provider == "gemini":
-                jarvis._tts_engine = None
-                jarvis._ext_tts_provider = ""
-                jarvis._ext_tts_voice_id = ""
-                jarvis._ext_tts_api_key = ""
-                jarvis.update_voice(voice_id)
+                haroid._tts_engine = None
+                haroid._ext_tts_provider = ""
+                haroid._ext_tts_voice_id = ""
+                haroid._ext_tts_api_key = ""
+                haroid.update_voice(voice_id)
             else:
-                jarvis._ext_tts_provider = provider
-                jarvis._ext_tts_voice_id = voice_id
-                jarvis._ext_tts_api_key = api_key
+                haroid._ext_tts_provider = provider
+                haroid._ext_tts_voice_id = voice_id
+                haroid._ext_tts_api_key = api_key
                 try:
                     from actions.tts_engine import TTSEngine
-                    jarvis._tts_engine = TTSEngine(
+                    haroid._tts_engine = TTSEngine(
                         provider=provider,
                         api_key=api_key,
                         voice_id=voice_id,
                     )
-                    jarvis.ui.write_log(f"SYS: TTS engine ready: {provider} / {voice_id}")
-                    jarvis.ui.write_log("SYS: Gemini audio muted - using external TTS")
+                    haroid.ui.write_log(f"SYS: TTS engine ready: {provider} / {voice_id}")
+                    haroid.ui.write_log("SYS: Gemini audio muted - using external TTS")
                 except Exception as e:
-                    jarvis.ui.write_log(f"SYS: TTS engine error: {e}")
+                    haroid.ui.write_log(f"SYS: TTS engine error: {e}")
                 # Restart session so new TTS takes effect
-                if jarvis.session and jarvis._loop:
+                if haroid.session and haroid._loop:
                     try:
-                        asyncio.run_coroutine_threadsafe(jarvis.session.close(), jarvis._loop)
+                        asyncio.run_coroutine_threadsafe(haroid.session.close(), haroid._loop)
                     except Exception as e:
-                        print(f"[JARVIS] Could not close session: {e}")
+                        print(f"[HAROID] Could not close session: {e}")
         ui.on_tts_provider_change = _on_tts_change
         try:
-            asyncio.run(jarvis.run())
+            asyncio.run(haroid.run())
         except KeyboardInterrupt:
             print("\n🔴 Shutting down...")
         except Exception as exc:
             message = f"Gemini startup failed: {str(exc)[:180]}"
-            print(f"[JARVIS] ❌ {message}")
+            print(f"[HAROID] ❌ {message}")
             try:
                 ui.write_log(f"ERR: {message}")
                 ui.set_state("LISTENING")
@@ -2131,13 +2236,13 @@ def main():
                 pass
 
     threading.Thread(target=runner, daemon=True).start()
-    print("[JARVIS] ✅ Interface ready.")
+    print("[HAROID] ✅ Interface ready.")
     ui.root.mainloop()
-    print("[JARVIS] Interface closed.")
+    print("[HAROID] Interface closed.")
 
 def cli_main():
-    """Canonical console entry point installed as the `jarvis` command."""
-    os.environ["JARVIS_CLI"] = "1"
+    """Canonical console entry point installed as the `haroid` command."""
+    os.environ["HAROID_CLI"] = "1"
     return main()
 
 

@@ -71,7 +71,7 @@ web/.next/
 web/tsconfig.tsbuildinfo
 
 # If you generate local status/log files
-jarvis.log
+haroid.log
 status.json
 
 

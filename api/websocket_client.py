@@ -1,4 +1,4 @@
-"""JarvisClient adapter that emits engine events as WebSocket JSON frames."""
+"""HaroidClient adapter that emits engine events as WebSocket JSON frames."""
 
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ class WebSocketClient:
         content = str(text)
         if content.startswith("You: "):
             role, content = "user", content[5:]
-        elif content.startswith("Jarvis: "):
+        elif content.startswith("Haroid: "):
             role, content = "assistant", content[8:]
         if self.user_id and role in {"user", "assistant"}:
             from .repositories import add_chat_message

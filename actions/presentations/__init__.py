@@ -1,4 +1,4 @@
-"""Reusable building blocks for JARVIS presentation jobs."""
+"""Reusable building blocks for HAROID presentation jobs."""
 
 from .models import PresentationRequest, PresentationResult, SourceBundle, SourceRecord
 

@@ -1,7 +1,7 @@
-"""Safety boundary used by the reusable JARVIS QA harness.
+"""Safety boundary used by the reusable HAROID QA harness.
 
 QA mode is intentionally opt-in. Normal runtime behavior is unchanged unless
-``JARVIS_QA_MODE=1`` is present in the environment.
+``HAROID_QA_MODE=1`` is present in the environment.
 """
 
 from __future__ import annotations
@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Any
 
 
-QA_MODE_ENV = "JARVIS_QA_MODE"
-QA_WORKSPACE_ENV = "JARVIS_QA_WORKSPACE"
+QA_MODE_ENV = "HAROID_QA_MODE"
+QA_WORKSPACE_ENV = "HAROID_QA_WORKSPACE"
 
 
 @dataclass(frozen=True)
@@ -73,27 +73,27 @@ def guard_tool_call(name: str, args: dict[str, Any] | None = None) -> QAGuardDec
     if tool == "send_message":
         return QAGuardDecision(False, "QA mode never sends real messages.")
 
-    if tool == "prepare_message_reply" and not _opt_in("JARVIS_QA_ALLOW_DRAFTS"):
-        return QAGuardDecision(False, "QA draft typing requires JARVIS_QA_ALLOW_DRAFTS=1.")
+    if tool == "prepare_message_reply" and not _opt_in("HAROID_QA_ALLOW_DRAFTS"):
+        return QAGuardDecision(False, "QA draft typing requires HAROID_QA_ALLOW_DRAFTS=1.")
 
     if tool == "email_control":
         if action == "approve":
             return QAGuardDecision(False, "QA mode never sends real email.")
-        if not _opt_in("JARVIS_QA_ALLOW_EMAIL"):
-            return QAGuardDecision(False, "QA email access requires JARVIS_QA_ALLOW_EMAIL=1.")
+        if not _opt_in("HAROID_QA_ALLOW_EMAIL"):
+            return QAGuardDecision(False, "QA email access requires HAROID_QA_ALLOW_EMAIL=1.")
 
     if tool in {"open_app", "browser_control"} and not _opt_in(
-        "JARVIS_QA_ALLOW_BROWSER" if tool == "browser_control" else "JARVIS_QA_ALLOW_DESKTOP"
+        "HAROID_QA_ALLOW_BROWSER" if tool == "browser_control" else "HAROID_QA_ALLOW_DESKTOP"
     ):
         return QAGuardDecision(False, f"QA {tool} control requires explicit supervised opt-in.")
 
-    if tool == "media_control" and not _opt_in("JARVIS_QA_ALLOW_DESKTOP"):
-        return QAGuardDecision(False, "QA media playback requires JARVIS_QA_ALLOW_DESKTOP=1.")
+    if tool == "media_control" and not _opt_in("HAROID_QA_ALLOW_DESKTOP"):
+        return QAGuardDecision(False, "QA media playback requires HAROID_QA_ALLOW_DESKTOP=1.")
 
     if tool in {"computer_control", "computer_settings"}:
         safe_read_actions = {"screenshot", "get_clipboard", "screen_size"}
-        if action not in safe_read_actions and not _opt_in("JARVIS_QA_ALLOW_DESKTOP"):
-            return QAGuardDecision(False, "QA desktop mutation requires JARVIS_QA_ALLOW_DESKTOP=1.")
+        if action not in safe_read_actions and not _opt_in("HAROID_QA_ALLOW_DESKTOP"):
+            return QAGuardDecision(False, "QA desktop mutation requires HAROID_QA_ALLOW_DESKTOP=1.")
         if action in {
             "shutdown", "restart", "reboot", "lock", "lock_screen", "sleep", "sleep_display",
             "toggle_wifi", "quit_app", "close_app",
@@ -102,19 +102,19 @@ def guard_tool_call(name: str, args: dict[str, Any] | None = None) -> QAGuardDec
 
     if tool == "desktop_control":
         safe_reads = {"list", "list_desktop", "stats", "get_stats", "get_wallpaper", "current_wallpaper"}
-        if action not in safe_reads and not _opt_in("JARVIS_QA_ALLOW_DESKTOP"):
-            return QAGuardDecision(False, "QA desktop changes require JARVIS_QA_ALLOW_DESKTOP=1.")
+        if action not in safe_reads and not _opt_in("HAROID_QA_ALLOW_DESKTOP"):
+            return QAGuardDecision(False, "QA desktop changes require HAROID_QA_ALLOW_DESKTOP=1.")
 
     if tool == "game_updater":
         safe_reads = {"status", "download_status", "schedule_status", "list", "list_games"}
         if action not in safe_reads:
             return QAGuardDecision(False, f"QA mode blocks game mutation: {action or 'unspecified'}.")
 
-    if tool == "reminder" and not _opt_in("JARVIS_QA_ALLOW_REMINDERS"):
-        return QAGuardDecision(False, "QA reminders require JARVIS_QA_ALLOW_REMINDERS=1.")
+    if tool == "reminder" and not _opt_in("HAROID_QA_ALLOW_REMINDERS"):
+        return QAGuardDecision(False, "QA reminders require HAROID_QA_ALLOW_REMINDERS=1.")
 
-    if tool == "save_memory" and not _opt_in("JARVIS_QA_ALLOW_MEMORY"):
-        return QAGuardDecision(False, "QA memory writes require JARVIS_QA_ALLOW_MEMORY=1.")
+    if tool == "save_memory" and not _opt_in("HAROID_QA_ALLOW_MEMORY"):
+        return QAGuardDecision(False, "QA memory writes require HAROID_QA_ALLOW_MEMORY=1.")
 
     write_capable = {
         "file_controller", "file_processor", "code_helper", "dev_agent",
@@ -125,7 +125,7 @@ def guard_tool_call(name: str, args: dict[str, Any] | None = None) -> QAGuardDec
         if not raw_paths or any(not _path_is_in_workspace(path, workspace) for path in raw_paths):
             return QAGuardDecision(
                 False,
-                "QA file-writing tools must use explicit paths inside JARVIS_QA_WORKSPACE.",
+                "QA file-writing tools must use explicit paths inside HAROID_QA_WORKSPACE.",
             )
 
     return QAGuardDecision(True)

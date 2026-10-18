@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AuthScreen } from "@/components/auth-screen";
-import { JarvisConsole } from "@/components/jarvis-console";
+import { HaroidConsole } from "@/components/haroid-console";
 import { Onboarding } from "@/components/onboarding";
 import { api, getToken, setToken, type Session, type User } from "@/lib/api";
 
@@ -42,12 +42,12 @@ export default function Home() {
   }
 
   if (view === "loading") {
-    return <div className="boot-screen"><div className="boot-pulse" aria-label="Initializing JARVIS" /></div>;
+    return <div className="boot-screen"><div className="boot-pulse" aria-label="Initializing HAROID" /></div>;
   }
   if (view === "auth") return <AuthScreen onSession={handleSession} />;
   if (view === "onboarding" && user) {
     return <Onboarding user={user} onComplete={() => setView("console")} onSignOut={signOut} />;
   }
-  if (view === "console" && user) return <JarvisConsole user={user} onSignOut={signOut} />;
+  if (view === "console" && user) return <HaroidConsole user={user} onSignOut={signOut} />;
   return null;
 }

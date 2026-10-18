@@ -55,7 +55,7 @@ class PresentationRequest:
     title: str
     audience: str = "General professional audience"
     tone: str = "confident, concise, executive"
-    theme: str = "jarvis_minimal"
+    theme: str = "haroid_minimal"
     theme_explicit: bool = False
     appearance: str = "auto"
     transition: str = "morph"
@@ -114,7 +114,7 @@ class PresentationRequest:
             title=_text(p.get("title") or topic)[:140],
             audience=_text(p.get("audience"), "General professional audience")[:140],
             tone=_text(p.get("tone"), "confident, concise, executive")[:140],
-            theme=_text(p.get("theme"), "jarvis_minimal").lower(),
+            theme=_text(p.get("theme"), "haroid_minimal").lower(),
             theme_explicit="theme" in p and bool(str(p.get("theme") or "").strip()),
             appearance=appearance,
             transition=transition,
@@ -167,7 +167,7 @@ class PresentationRequest:
             return "dark"
         if any(term in request_text for term in light_terms):
             return "light"
-        if self.use_native_3d or self.theme == "jarvis_minimal":
+        if self.use_native_3d or self.theme == "haroid_minimal":
             return "dark"
         if self.theme_explicit and self.theme == "arc_reactor":
             return "dark"

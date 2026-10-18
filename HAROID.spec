@@ -21,7 +21,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='JARVIS',
+    name='HAROID',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -40,11 +40,11 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='JARVIS',
+    name='HAROID',
 )
 app = BUNDLE(
     coll,
-    name='JARVIS.app',
+    name='HAROID.app',
     icon=None,
     bundle_identifier=None,
 )

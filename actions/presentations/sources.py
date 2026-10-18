@@ -188,7 +188,7 @@ def _read_url(url: str, workspace: Path | None = None) -> SourceRecord:
         import requests
         from bs4 import BeautifulSoup
 
-        response = requests.get(url, timeout=20, headers={"User-Agent": "JARVIS-Presentation/1.0"})
+        response = requests.get(url, timeout=20, headers={"User-Agent": "HAROID-Presentation/1.0"})
         response.raise_for_status()
         content_type = response.headers.get("content-type", "")
         if "text/html" in content_type:
@@ -264,7 +264,7 @@ def ingest_sources(
             research = web_search({"query": request.topic, "mode": "search"}, player=None)
             if research:
                 bundle.records.append(SourceRecord(
-                    label="JARVIS web research",
+                    label="HAROID web research",
                     kind="research",
                     location=f"web search: {request.topic}",
                     text=str(research)[:80_000],

@@ -31,7 +31,7 @@ class StartupClapTests(unittest.TestCase):
         self.assertTrue(main.wait_for_startup_claps(timeout=1, stream_factory=factory))
 
     def test_gate_can_be_bypassed_for_missing_microphone_access(self):
-        with patch.dict(os.environ, {"JARVIS_SKIP_CLAP_GATE": "1"}):
+        with patch.dict(os.environ, {"HAROID_SKIP_CLAP_GATE": "1"}):
             self.assertTrue(main.wait_for_startup_claps(stream_factory=lambda **_: self.fail("opened mic")))
 
     def test_gate_times_out_without_claps(self):

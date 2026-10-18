@@ -17,7 +17,7 @@ from actions import (
     file_controller,
     file_processor,
     instagram_browser,
-    jarvis_file_stamp,
+    haroid_file_stamp,
     media_control,
     open_app,
     reminder,
@@ -396,7 +396,7 @@ class ActionHelperTests(unittest.TestCase):
             patch.object(file_controller, "_is_safe_path", return_value=True),
             patch.object(file_controller.subprocess, "run") as run,
         ):
-            result = file_controller.file_controller({"action": "open", "path": "/missing/jarvis-file.txt"})
+            result = file_controller.file_controller({"action": "open", "path": "/missing/haroid-file.txt"})
         self.assertIn("Not found", result)
         run.assert_not_called()
 
@@ -537,17 +537,17 @@ class ActionHelperTests(unittest.TestCase):
 
     def test_file_stamp_is_idempotent(self):
         target = Path("sample.py")
-        once = jarvis_file_stamp.stamp_text_content("print('ok')\n", target, "QA")
-        twice = jarvis_file_stamp.stamp_text_content(once, target, "QA")
+        once = haroid_file_stamp.stamp_text_content("print('ok')\n", target, "QA")
+        twice = haroid_file_stamp.stamp_text_content(once, target, "QA")
         self.assertEqual(once, twice)
 
     def test_sidecar_metadata_contains_no_secret_value(self):
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "binary.bin"
             target.write_bytes(b"data")
-            sidecar = jarvis_file_stamp.write_sidecar_metadata(target, "QA artifact")
+            sidecar = haroid_file_stamp.write_sidecar_metadata(target, "QA artifact")
             text = sidecar.read_text(encoding="utf-8")
-            self.assertIn("JARVIS FILE PROVENANCE", text)
+            self.assertIn("HAROID FILE PROVENANCE", text)
             self.assertNotIn("GEMINI_API_KEY", text)
 
 

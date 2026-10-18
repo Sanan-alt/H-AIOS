@@ -1,4 +1,4 @@
-"""Request-local tenant identity shared by hosted JARVIS services."""
+"""Request-local tenant identity shared by hosted HAROID services."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from collections.abc import Iterator
 
 
 _current_user_id: ContextVar[str | None] = ContextVar(
-    "jarvis_current_user_id",
+    "haroid_current_user_id",
     default=None,
 )
 

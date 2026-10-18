@@ -3,7 +3,7 @@ from pathlib import Path
 from datetime import datetime
 
 ROOT = Path(__file__).resolve().parent.parent
-STATUS_PATH = ROOT / "tmp" / "jarvis_status.json"
+STATUS_PATH = ROOT / "tmp" / "haroid_status.json"
 
 
 def _ensure_dir():

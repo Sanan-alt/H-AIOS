@@ -14,7 +14,7 @@ EXPECTED_TOOLS = {
     "prepare_message_reply", "send_message", "email_control", "reminder", "youtube_video", "media_control",
     "screen_process", "computer_settings", "browser_control", "file_controller",
     "desktop_control", "code_helper", "dev_agent", "agent_task",
-    "computer_control", "game_updater", "flight_finder", "jarvis_ui_control",
+    "computer_control", "game_updater", "flight_finder", "haroid_ui_control",
     "file_processor", "create_presentation", "deep_research", "graphics_quality", "task_status", "save_memory",
 }
 
@@ -59,7 +59,7 @@ def repository_findings(root: Path) -> list[Finding]:
         findings.append(Finding(
             "P0", "Declared tools lack dispatch branches", "Tool routing",
             "A valid Live tool call can return no useful result.",
-            "Compare TOOL_DECLARATIONS with JarvisLive._execute_tool.",
+            "Compare TOOL_DECLARATIONS with HaroidLive._execute_tool.",
             "Every declaration has an execution path.",
             f"Unhandled={unhandled}",
         ))

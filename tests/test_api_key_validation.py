@@ -38,7 +38,7 @@ class GeminiApiKeyGateTests(unittest.TestCase):
 
     def test_locked_keychain_is_treated_as_unavailable_not_fatal(self):
         store = KeyringSecretStore.__new__(KeyringSecretStore)
-        store.service = "jarvis"
+        store.service = "haroid"
         store._keyring = type(
             "BrokenKeyring",
             (),

@@ -119,9 +119,9 @@ class HostedApiTests(unittest.TestCase):
         import main
         from core.tenant import get_current_user_id
 
-        jarvis = main.JarvisLive.__new__(main.JarvisLive)
-        jarvis.cloud_safe = True
-        jarvis.ui = SimpleNamespace(
+        haroid = main.HaroidLive.__new__(main.HaroidLive)
+        haroid.cloud_safe = True
+        haroid.ui = SimpleNamespace(
             set_state=lambda _state: None,
             muted=False,
         )
@@ -129,7 +129,7 @@ class HostedApiTests(unittest.TestCase):
 
         with patch.object(main, "web_search_action", side_effect=lambda **_kwargs: get_current_user_id()):
             with tenant_scope(self.user_id):
-                response = asyncio.run(jarvis._execute_tool(call))
+                response = asyncio.run(haroid._execute_tool(call))
 
         self.assertEqual(response.response["result"], self.user_id)
 
@@ -153,7 +153,7 @@ class HostedApiTests(unittest.TestCase):
                     await asyncio.sleep(0.01)
 
             async def send_text(self, text):
-                self.client.write_log(f"Jarvis: Echo: {text}")
+                self.client.write_log(f"Haroid: Echo: {text}")
                 return True
 
             async def send_audio_chunk(self, _data, _mime_type="audio/pcm;rate=16000"):
@@ -167,7 +167,7 @@ class HostedApiTests(unittest.TestCase):
 
         import main
 
-        with patch.object(main, "JarvisLive", FakeLiveEngine):
+        with patch.object(main, "HaroidLive", FakeLiveEngine):
             with self.client.websocket_connect(f"/ws?token={self.access_token}") as socket:
                 received = [socket.receive_json(), socket.receive_json()]
                 self.assertEqual({event["type"] for event in received}, {"ready", "status"})
@@ -194,7 +194,7 @@ class WebSocketAdapterTests(unittest.TestCase):
             client = WebSocketClient(socket)
             sender = asyncio.create_task(client.send_events())
             client.set_state("LISTENING")
-            client.write_log("Jarvis: Online.")
+            client.write_log("Haroid: Online.")
             client.send_audio(b"\x01\x02")
             await asyncio.sleep(0)
             await client.close()

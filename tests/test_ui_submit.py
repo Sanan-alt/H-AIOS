@@ -21,7 +21,7 @@ class UISubmitTests(unittest.TestCase):
         ui.MainWindow._send(window, "Open the Command Center!!!")
         window._set_command_center.assert_called_once_with(True)
 
-    def test_regular_message_reaches_jarvis_callback(self):
+    def test_regular_message_reaches_haroid_callback(self):
         received = []
         done = threading.Event()
 
@@ -42,7 +42,7 @@ class UISubmitTests(unittest.TestCase):
             raise RuntimeError("routing failed")
 
         window = self._window_stub(callback)
-        ui.MainWindow._send(window, "Hello JARVIS")
+        ui.MainWindow._send(window, "Hello HAROID")
         self.assertTrue(done.wait(1.0))
         for _ in range(100):
             if window._log_sig.emit.called:

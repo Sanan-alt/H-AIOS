@@ -1,4 +1,4 @@
-app = "jarvis-cloud-api"
+app = "haroid-cloud-api"
 primary_region = "sjc"
 
 [build]
@@ -8,7 +8,7 @@ primary_region = "sjc"
   release_command = "alembic upgrade head"
 
 [env]
-  JARVIS_ENV = "production"
+  HAROID_ENV = "production"
   AUTO_CREATE_TABLES = "0"
   REDIS_REQUIRED = "1"
   PORT = "8000"

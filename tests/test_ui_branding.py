@@ -24,7 +24,7 @@ class UIBrandingTests(unittest.TestCase):
         self.addCleanup(strip.deleteLater)
 
         self.assertEqual(host._maker_signature_lbl.text(), "amd.creationz™")
-        self.assertEqual(strip.objectName(), "JarvisMakerSignature")
+        self.assertEqual(strip.objectName(), "HaroidMakerSignature")
         self.assertEqual(strip.height(), 20)
         self.assertIn(ui.C.TEXT_DIM, host._maker_signature_lbl.styleSheet())
         self.assertIn(ui.C.BG, strip.styleSheet())

@@ -4,11 +4,11 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { Activity, ArrowUp, LogOut, Mic, MicOff, Radio, ShieldCheck, Wifi, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Reactor } from "@/components/reactor";
-import { useJarvisSocket } from "@/hooks/use-jarvis-socket";
+import { useHaroidSocket } from "@/hooks/use-haroid-socket";
 import { api, type Action, type User } from "@/lib/api";
 
-export function JarvisConsole({ user, onSignOut }: { user: User; onSignOut: () => void }) {
-  const live = useJarvisSocket();
+export function HaroidConsole({ user, onSignOut }: { user: User; onSignOut: () => void }) {
+  const live = useHaroidSocket();
   const [actions, setActions] = useState<Action[]>([]);
   const [draft, setDraft] = useState("");
   const logEnd = useRef<HTMLDivElement>(null);
@@ -26,7 +26,7 @@ export function JarvisConsole({ user, onSignOut }: { user: User; onSignOut: () =
   return (
     <main className="console-shell">
       <header className="console-header">
-        <div className="wordmark"><span className="wordmark-mark">J</span> JARVIS <small>MARK XXXIX</small></div>
+        <div className="wordmark"><span className="wordmark-mark">J</span> HAROID <small>MARK XXXIX</small></div>
         <div className="header-state" aria-live="polite">
           {connected ? <Wifi size={14} /> : <WifiOff size={14} />}
           <span>{live.state}</span>
@@ -39,10 +39,10 @@ export function JarvisConsole({ user, onSignOut }: { user: User; onSignOut: () =
           <div className="panel-heading"><div><p className="section-index">CHANNEL / PRIMARY</p><h2 id="log-title">Mission log</h2></div><Radio size={17} /></div>
           <div className="message-stream" aria-live="polite">
             {live.messages.length === 0 ? (
-              <div className="empty-log"><span>Awaiting first instruction</span><p>Speak naturally or type a request. JARVIS will keep the same context across both inputs.</p></div>
+              <div className="empty-log"><span>Awaiting first instruction</span><p>Speak naturally or type a request. HAROID will keep the same context across both inputs.</p></div>
             ) : live.messages.map((message) => (
               <article key={message.id} className={`message message-${message.role}`}>
-                <div><span>{message.role === "assistant" ? "JARVIS" : message.role === "user" ? "YOU" : "SYSTEM"}</span><time>{new Date(message.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time></div>
+                <div><span>{message.role === "assistant" ? "HAROID" : message.role === "user" ? "YOU" : "SYSTEM"}</span><time>{new Date(message.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time></div>
                 <p>{message.content}</p>
               </article>
             ))}
@@ -58,7 +58,7 @@ export function JarvisConsole({ user, onSignOut }: { user: User; onSignOut: () =
             <p>{live.transcript || (live.micActive ? "Microphone is live. Speak when ready." : "Text channel ready. Enable the microphone for voice.")}</p>
           </div>
           <form className="command-composer" onSubmit={submit}>
-            <textarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} placeholder="Issue an instruction" aria-label="Message JARVIS" rows={2} />
+            <textarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} placeholder="Issue an instruction" aria-label="Message HAROID" rows={2} />
             <Button type="button" variant={live.micActive ? "danger" : "secondary"} size="icon" disabled={!connected} aria-label={live.micActive ? "Mute microphone" : "Enable microphone"} onClick={() => live.micActive ? live.stopMic() : live.startMic()}>
               {live.micActive ? <MicOff size={18} /> : <Mic size={18} />}
             </Button>

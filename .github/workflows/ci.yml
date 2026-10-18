@@ -12,12 +12,12 @@ jobs:
       postgres:
         image: postgres:17-alpine
         env:
-          POSTGRES_DB: jarvis_test
-          POSTGRES_USER: jarvis
-          POSTGRES_PASSWORD: jarvis
+          POSTGRES_DB: haroid_test
+          POSTGRES_USER: haroid
+          POSTGRES_PASSWORD: haroid
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U jarvis"
+          --health-cmd "pg_isready -U haroid"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -30,11 +30,11 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://jarvis:jarvis@localhost:5432/jarvis_test
+      DATABASE_URL: postgresql://haroid:haroid@localhost:5432/haroid_test
       REDIS_URL: redis://localhost:6379/0
       JWT_SECRET: ci-jwt-secret-with-sufficient-length
-      JARVIS_ENCRYPTION_KEY: ci-encryption-secret-with-sufficient-length
-      JARVIS_ENV: test
+      HAROID_ENCRYPTION_KEY: ci-encryption-secret-with-sufficient-length
+      HAROID_ENV: test
       AUTO_CREATE_TABLES: "0"
     steps:
       - uses: actions/checkout@v4

@@ -101,7 +101,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(
-    title="JARVIS Cloud API",
+    title="HAROID Cloud API",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -125,7 +125,7 @@ def _user_view(user: User, db: Session) -> UserView:
 
 @app.get("/health")
 def health() -> dict:
-    return {"ok": True, "service": "jarvis-api"}
+    return {"ok": True, "service": "haroid-api"}
 
 
 @app.post("/auth/signup", response_model=SessionView, status_code=201)
@@ -216,7 +216,7 @@ async def chat(
     await limiter.consume(user.id, "chat", 30, 60)
     api_key = get_user_secret(db, user.id, "gemini_api_key")
     if not api_key:
-        raise HTTPException(status_code=409, detail="Add a Gemini API key before starting JARVIS")
+        raise HTTPException(status_code=409, detail="Add a Gemini API key before starting HAROID")
 
     with tenant_scope(user.id):
         history = recent_chat_messages(user.id, limit=12)
@@ -254,7 +254,7 @@ async def chat(
 
 @app.websocket("/ws")
 async def live_socket(websocket: WebSocket) -> None:
-    from main import JarvisLive
+    from main import HaroidLive
 
     with SessionLocal() as db:
         try:
@@ -270,13 +270,13 @@ async def live_socket(websocket: WebSocket) -> None:
         await websocket.send_json({
             "type": "error",
             "code": "gemini_key_required",
-            "message": "Add a Gemini API key before starting JARVIS.",
+            "message": "Add a Gemini API key before starting HAROID.",
         })
         await websocket.close(code=4403)
         return
 
     client = WebSocketClient(websocket, user.id)
-    engine = JarvisLive(
+    engine = HaroidLive(
         client,
         cloud_safe=True,
         api_key=api_key,

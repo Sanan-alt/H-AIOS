@@ -610,9 +610,9 @@ def _power_target_text(params: dict, description: str, value) -> str:
     ).lower()
 
 
-def _is_jarvis_self_shutdown_request(params: dict, action: str, description: str, value) -> bool:
+def _is_haroid_self_shutdown_request(params: dict, action: str, description: str, value) -> bool:
     text = f"{action} {_power_target_text(params, description, value)}"
-    if "jarvis" not in text:
+    if "haroid" not in text:
         return False
     return any(word in text for word in ("shutdown", "shut down", "restart", "reboot", "close", "quit", "exit", "stop"))
 
@@ -643,7 +643,7 @@ Return ONLY a valid JSON object:
 
 Rules:
 - Pick the single best matching action from the available list.
-- If the user says to shut down, restart, reboot, close, quit, exit, or stop JARVIS, do not choose shutdown or restart.
+- If the user says to shut down, restart, reboot, close, quit, exit, or stop HAROID, do not choose shutdown or restart.
 - Choose shutdown/restart only when the user clearly asks to power off or restart the computer/system/Mac/PC.
 - For volume_set: value is an integer 0-100.
 - For type_text: value is the exact text to type.
@@ -685,8 +685,8 @@ def computer_settings(
     if not action:
         return "No action could be determined."
 
-    if _is_jarvis_self_shutdown_request(params, action, description, value):
-        return "JARVIS self-shutdown is disabled. No computer shutdown was performed."
+    if _is_haroid_self_shutdown_request(params, action, description, value):
+        return "HAROID self-shutdown is disabled. No computer shutdown was performed."
 
     print(f"[Settings] Action: {action}  Value: {value}  OS: {_OS}")
     if player:

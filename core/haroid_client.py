@@ -1,4 +1,4 @@
-"""Transport-neutral client contract for the JARVIS live engine."""
+"""Transport-neutral client contract for the HAROID live engine."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ class VoiceSelector(Protocol):
 
 
 @runtime_checkable
-class JarvisClient(Protocol):
+class HaroidClient(Protocol):
     """Events and state the live engine needs from any connected client.
 
     The PyQt desktop adapter and future WebSocket adapter can both implement

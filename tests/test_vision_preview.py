@@ -45,7 +45,7 @@ class VisionPreviewTests(unittest.TestCase):
             preview.deleteLater()
             host.deleteLater()
 
-    def test_drag_position_is_clamped_inside_jarvis(self):
+    def test_drag_position_is_clamped_inside_haroid(self):
         host = QWidget()
         host.resize(700, 500)
         preview = ui.VisionPreviewWindow(host)

@@ -9,7 +9,7 @@ import time
 import random
 from pathlib import Path
 
-from actions.jarvis_file_stamp import mark_created_file
+from actions.haroid_file_stamp import mark_created_file
 from actions.safe_text_entry import safe_type_text
 
 try:
@@ -54,7 +54,7 @@ _SAFE_SCREENSHOT_ROOTS = (
 )
 
 def _safe_screenshot_path(requested: str | None) -> Path:
-    fallback = Path.home() / "Desktop" / "jarvis_screenshot.png"
+    fallback = Path.home() / "Desktop" / "haroid_screenshot.png"
     if not requested:
         return fallback
     try:
@@ -221,7 +221,7 @@ def _screenshot(save_path: str | None = None) -> str:
     path = _safe_screenshot_path(save_path)
     img  = pyautogui.screenshot()
     img.save(str(path))
-    mark_created_file(path, "Screenshot captured by JARVIS computer_control.")
+    mark_created_file(path, "Screenshot captured by HAROID computer_control.")
     return f"Screenshot saved: {path}"
 
 

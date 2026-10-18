@@ -30,7 +30,7 @@ try:
 except ImportError:
     _PYPERCLIP = False
 
-JARVIS_TEXT_FOOTER = "CREATED BY JARVIS"
+HAROID_TEXT_FOOTER = "CREATED BY HAROID"
 AMBIGUOUS_PREFIX = "RECIPIENT_AMBIGUOUS|"
 NO_MATCH_PREFIX = "RECIPIENT_NOT_FOUND|"
 MESSAGE_DUPLICATE_TTL_SECONDS = 120.0
@@ -82,7 +82,7 @@ def normalize_outgoing_message_text(text: str) -> str:
         return prefix + char.upper()
 
     message = re.sub(r"(^|[.!?]\s+)([a-z])", fix_sentence, message)
-    if not re.search(r"[.!?…]$|" + re.escape(JARVIS_TEXT_FOOTER) + r"$", message):
+    if not re.search(r"[.!?…]$|" + re.escape(HAROID_TEXT_FOOTER) + r"$", message):
         message += "."
     return message
 
@@ -122,7 +122,7 @@ def _name_norm(text: str) -> str:
 
 def _message_norm(text: str) -> str:
     value = str(text or "")
-    value = re.sub(r"\bcreated\s+by\s+jarvis\b", "", value, flags=re.IGNORECASE)
+    value = re.sub(r"\bcreated\s+by\s+haroid\b", "", value, flags=re.IGNORECASE)
     value = _strip_accents(value).lower()
     return re.sub(r"[^a-z0-9]+", "", value)
 
@@ -1523,7 +1523,7 @@ def _screen_find(description: str, retries: int = 2, delay: float = 0.6) -> tupl
             img.save(buf, format="PNG")
 
             prompt = (
-                f"You are controlling a {w}x{h} screen for JARVIS messaging. "
+                f"You are controlling a {w}x{h} screen for HAROID messaging. "
                 f"Find this exact UI target: {description}. "
                 "Prefer visible text fields, buttons, or list results in the active browser/app. "
                 "Return ONLY the center coordinate as x,y. If not visible, return NOT_FOUND."
@@ -1556,11 +1556,11 @@ def _vision_click(description: str, retries: int = 2, delay: float = 0.6) -> boo
     return True
 
 
-def _with_jarvis_footer(text: str) -> str:
+def _with_haroid_footer(text: str) -> str:
     message = normalize_outgoing_message_text(text)
-    if JARVIS_TEXT_FOOTER.lower() in message.lower():
+    if HAROID_TEXT_FOOTER.lower() in message.lower():
         return message
-    return f"{message}\n\n{JARVIS_TEXT_FOOTER}"
+    return f"{message}\n\n{HAROID_TEXT_FOOTER}"
 
 
 def _clear_and_paste(text: str) -> None:
@@ -1781,7 +1781,7 @@ def send_message(
     if not message_text:
         return "Please specify the message content."
 
-    message_text = _with_jarvis_footer(message_text)
+    message_text = _with_haroid_footer(message_text)
     duplicate = _check_duplicate_send(platform, receiver, message_text)
     if duplicate:
         print(f"[SendMessage] ⏭️ {duplicate}")
@@ -1871,7 +1871,7 @@ def prepare_message_reply(
 
     platform_key = platform.lower()
     if _is_instagram_platform(platform_key):
-        prepared_text = _with_jarvis_footer(message_text)
+        prepared_text = _with_haroid_footer(message_text)
         result = prepare_instagram_draft(receiver, prepared_text)
         if "draft typed" not in result.lower():
             return result

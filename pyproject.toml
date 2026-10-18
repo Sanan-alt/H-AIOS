@@ -3,13 +3,13 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "jarvis-mark-xxxix"
+name = "haroid-mark-xxxix"
 version = "0.1.0"
-description = "JARVIS local Gemini Live desktop assistant"
+description = "HAROID local Gemini Live desktop assistant"
 requires-python = ">=3.11"
 
 [project.scripts]
-jarvis = "main:cli_main"
+haroid = "main:cli_main"
 
 [tool.setuptools]
 py-modules = ["main", "ui"]

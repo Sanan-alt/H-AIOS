@@ -101,9 +101,9 @@ class PresentationMakerTests(unittest.TestCase):
         presentation_assets._image_quota_cooldown_until = 0.0
         maker._presentation_output_locks.clear()
 
-    def test_default_theme_is_restrained_jarvis_minimal(self):
+    def test_default_theme_is_restrained_haroid_minimal(self):
         request = PresentationRequest.from_parameters({"topic": "Biology"})
-        self.assertEqual(request.theme, "jarvis_minimal")
+        self.assertEqual(request.theme, "haroid_minimal")
         self.assertEqual(request.resolved_appearance(), "dark")
         self.assertEqual(request.transition, "morph")
 
@@ -260,7 +260,7 @@ class PresentationMakerTests(unittest.TestCase):
         self.assertTrue(any("Fade compatibility" in warning for warning in result.warnings))
 
     def test_same_output_path_uses_the_same_build_lock(self):
-        path = Path("/tmp/jarvis-presentation-lock-test.pptx")
+        path = Path("/tmp/haroid-presentation-lock-test.pptx")
         self.assertIs(maker._output_lock_for(path), maker._output_lock_for(path))
 
     def test_renderer_uses_a_consistent_light_or_dark_canvas(self):
@@ -271,8 +271,8 @@ class PresentationMakerTests(unittest.TestCase):
             maker._render_presentation(_sample_plan(), dark_path, appearance="dark")
             light_fill = str(Presentation(light_path).slides[0].shapes[0].fill.fore_color.rgb)
             dark_fill = str(Presentation(dark_path).slides[0].shapes[0].fill.fore_color.rgb)
-            self.assertEqual(light_fill, maker.THEMES["jarvis_minimal"]["paper"])
-            self.assertEqual(dark_fill, maker.THEMES["jarvis_minimal"]["ink"])
+            self.assertEqual(light_fill, maker.THEMES["haroid_minimal"]["paper"])
+            self.assertEqual(dark_fill, maker.THEMES["haroid_minimal"]["ink"])
 
     def test_model_focus_balances_native_3d_against_only_essential_text(self):
         plan = maker._normalize_plan(_sample_plan(), "Cells", 6)
@@ -290,10 +290,10 @@ class PresentationMakerTests(unittest.TestCase):
 
             model_slides = []
             for slide in deck.slides:
-                models = [shape for shape in slide.shapes if shape.name.startswith("!!JARVIS 3D")]
+                models = [shape for shape in slide.shapes if shape.name.startswith("!!HAROID 3D")]
                 if models:
                     model_slides.append(slide)
-                    posters = [shape for shape in slide.shapes if shape.name.startswith("!!JARVIS 3D Poster")]
+                    posters = [shape for shape in slide.shapes if shape.name.startswith("!!HAROID 3D Poster")]
                     text_shapes = [
                         shape for shape in slide.shapes
                         if hasattr(shape, "text") and shape.text.strip()
@@ -351,7 +351,7 @@ class PresentationMakerTests(unittest.TestCase):
 
             self.assertIn("Created an editable 6-slide", result)
             self.assertTrue(output.exists())
-            self.assertTrue(output.with_name("generated.pptx.jarvis_meta.json").exists())
+            self.assertTrue(output.with_name("generated.pptx.haroid_meta.json").exists())
 
     def test_default_quality_caps_image_generation_at_two_requests(self):
         standard = PresentationRequest.from_parameters({"topic": "Biology"})

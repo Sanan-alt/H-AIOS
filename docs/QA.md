@@ -1,4 +1,4 @@
-# JARVIS Quality Assurance
+# HAROID Quality Assurance
 
 The QA system has two stages. Automated checks are always run first. Supervised checks then exercise real macOS audio, permissions, displays, and integrations while QA safety rules remain active.
 
@@ -8,7 +8,7 @@ The QA system has two stages. Automated checks are always run first. Supervised 
 python3 scripts/qa.py automated
 ```
 
-This enables `JARVIS_QA_MODE`, creates an isolated workspace, compiles the runtime, checks installed dependencies, runs the complete test suite, scans tracked files for Gemini key patterns, audits tool declarations, and writes redacted Markdown and JSON reports under `.qa-artifacts/`.
+This enables `HAROID_QA_MODE`, creates an isolated workspace, compiles the runtime, checks installed dependencies, runs the complete test suite, scans tracked files for Gemini key patterns, audits tool declarations, and writes redacted Markdown and JSON reports under `.qa-artifacts/`.
 
 ## Supervised macOS audit
 
@@ -34,24 +34,24 @@ Start the checklist:
 python3 scripts/qa.py live
 ```
 
-The runner prints a unique QA workspace. In another terminal, launch JARVIS with the two environment values it displays. Record pass, fail, blocked, or skipped for each case.
+The runner prints a unique QA workspace. In another terminal, launch HAROID with the two environment values it displays. Record pass, fail, blocked, or skipped for each case.
 
 Optional supervised capabilities must be enabled individually:
 
 ```bash
-JARVIS_QA_ALLOW_BROWSER=1
-JARVIS_QA_ALLOW_DESKTOP=1
-JARVIS_QA_ALLOW_DRAFTS=1
-JARVIS_QA_ALLOW_REMINDERS=1
-JARVIS_QA_ALLOW_MEMORY=1
+HAROID_QA_ALLOW_BROWSER=1
+HAROID_QA_ALLOW_DESKTOP=1
+HAROID_QA_ALLOW_DRAFTS=1
+HAROID_QA_ALLOW_REMINDERS=1
+HAROID_QA_ALLOW_MEMORY=1
 ```
 
 Real message sending, computer shutdown/restart, connectivity changes, game installation/update, and file writes outside the QA workspace remain blocked even when optional capabilities are enabled.
 
-To collect a 30-minute stability sample from a running JARVIS process:
+To collect a 30-minute stability sample from a running HAROID process:
 
 ```bash
-python3 scripts/qa.py live --pid JARVIS_PID --soak-minutes 30
+python3 scripts/qa.py live --pid HAROID_PID --soak-minutes 30
 ```
 
 ## Reports and bug handling

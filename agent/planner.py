@@ -140,7 +140,7 @@ flight_finder
   destination: string (required)
   date: string (required)
 
-jarvis_ui_control
+haroid_ui_control
   action: "open_command_center" | "close_command_center" | "change_theme" | "open_settings" | "compact_mode" | "fullscreen" | "show_shortcuts" (required)
   theme: "arc_reactor" | "stealth_red" | "vibranium_purple" | "nanotech_gold" | "platinum" (required for change_theme)
 
@@ -152,7 +152,7 @@ create_presentation
   audience: string (optional)
   slide_count: integer 3-50 (optional, default: 8)
   tone: string (optional)
-  theme: "jarvis_minimal" | "editorial" | "arc_reactor" | "executive" | "platinum" (optional, default: jarvis_minimal)
+  theme: "haroid_minimal" | "editorial" | "arc_reactor" | "executive" | "platinum" (optional, default: haroid_minimal)
   appearance: "auto" | "light" | "dark" (optional, default: auto)
   transition: "morph" | "fade" | "none" (optional, default: morph)
   source_file: string (optional)
@@ -161,7 +161,7 @@ create_presentation
   template_file: string (optional)
   model_source_file: string (optional; PPTX used only to borrow embedded native 3D models)
   use_native_3d: boolean (optional; set true when the user asks to use PowerPoint 3D models)
-  three_d_mode: "ask" | "yes" | "no" (optional; omit or ask initially so JARVIS can request the user's preference)
+  three_d_mode: "ask" | "yes" | "no" (optional; omit or ask initially so HAROID can request the user's preference)
   quality: "fast" | "quality" | "premium" (optional)
   allow_web_research: boolean (optional, default: false)
   export_pdf: boolean (optional, default: true)

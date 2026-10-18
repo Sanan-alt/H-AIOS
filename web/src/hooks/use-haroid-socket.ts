@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getToken, WS_URL } from "@/lib/api";
 
-export type JarvisState = "OFFLINE" | "CONNECTING" | "LISTENING" | "THINKING" | "SPEAKING" | "MUTED";
+export type HaroidState = "OFFLINE" | "CONNECTING" | "LISTENING" | "THINKING" | "SPEAKING" | "MUTED";
 export type Message = { id: string; role: "user" | "assistant" | "system"; content: string; at: string };
 export type Progress = { kind: string; label: string; percent: number; phase: string } | null;
 
@@ -30,13 +30,13 @@ function pcm16(input: Float32Array, sourceRate: number, targetRate = 16000) {
   return output;
 }
 
-export function useJarvisSocket() {
+export function useHaroidSocket() {
   const socket = useRef<WebSocket | null>(null);
   const capture = useRef<Capture | null>(null);
   const playback = useRef<AudioContext | null>(null);
   const nextPlaybackAt = useRef(0);
   const desired = useRef(true);
-  const [state, setState] = useState<JarvisState>("CONNECTING");
+  const [state, setState] = useState<HaroidState>("CONNECTING");
   const [messages, setMessages] = useState<Message[]>([]);
   const [transcript, setTranscript] = useState("");
   const [progress, setProgress] = useState<Progress>(null);
@@ -80,7 +80,7 @@ export function useJarvisSocket() {
       socket.current = ws;
       ws.onmessage = (message) => {
         const event = JSON.parse(String(message.data));
-        if (event.type === "status") setState(event.state as JarvisState);
+        if (event.type === "status") setState(event.state as HaroidState);
         if (event.type === "ready") setError("");
         if (event.type === "message") {
           setMessages((current) => {
